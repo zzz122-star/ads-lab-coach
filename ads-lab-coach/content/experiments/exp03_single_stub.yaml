@@ -1,0 +1,132 @@
+id: exp03_single_stub
+title: 实验 3：单支节匹配网络
+goal: 用一段串联传输线加并联短路支节，把 100 Ω 负载在 2.4 GHz 匹配到 50 Ω，并解释两个解的取舍。
+estimated_minutes: 70
+status: draft
+
+params:
+  - {key: z0, label: 系统阻抗 Z0, unit: Ω, default: 50.0, min: 10.0, max: 200.0, step: 1.0}
+  - {key: zl, label: 负载阻抗 ZL, unit: Ω, default: 100.0, min: 5.0, max: 500.0, step: 1.0}
+  - {key: f0_ghz, label: 工作频率, unit: GHz, default: 2.4, min: 0.1, max: 20.0, step: 0.1}
+  - {key: er, label: 基板 εr, unit: "", default: 4.4, min: 1.0, max: 20.0, step: 0.1}
+  - {key: h_mm, label: 基板厚度 h, unit: mm, default: 1.6, min: 0.1, max: 10.0, step: 0.1}
+
+metrics:
+  - {label: 匹配前 VSWR, unit: "", calc: vswr, digits: 2}
+  - {label: 匹配前回波损耗, unit: dB, calc: return_loss_db, digits: 2}
+  - {label: 50 Ω 微带线宽, unit: mm, calc: microstrip_width, digits: 3}
+  - {label: 2.4 GHz 处 λg, unit: mm, calc: guided_wavelength_mm, digits: 2}
+
+verification:
+  ads_version: "2027 (6.5.0.0)"
+  note: "TLIN、MLOC 与理想接地元件需实操确认；匹配线长以仿真调谐为准"
+
+steps:
+  - title: 先测未匹配的负载
+    action: "放入 Term1、100 Ω 负载和 S-Param 控制器，扫 1–4 GHz，读 2.4 GHz 处 S11。"
+    why: "先建立基准，未匹配时 S11 约 -9.5 dB，后面的改善才有对比意义。"
+    verified: false
+    doc_verified: true
+    ui_path: "Term 元件参数：Num（端口号，默认 1）、Z（参考阻抗，默认 50 Ohm）；100 Ω 负载用电阻元件实现"
+    doc_ref: "ADS 2027 Help: ccsim/Term_(Port_Termination_for_all_simulations).html"
+  - title: 用理想传输线搭建匹配网络
+    action: "在负载前串一段 TLIN，再在节点处并联一段接地的 TLIN 作为短路支节。"
+    key_params: "串联线负责把负载导纳转到实部为 1 的位置，支节负责抵消剩余电抗。"
+    why: "并联支节在导纳域工作，短路支节提供纯电抗，不引入额外损耗。"
+    verified: false
+    doc_verified: true
+    ui_path: "串联线用 TLIN（Z、E、F）；短路支节可直接用 TLSC（参数 Z、E、F），其 Port 2 必须接系统地"
+    doc_ref: "ADS 2027 Help: ccdist/TLIN_(Ideal_2-Terminal_Transmission_Line).html；ccdist/TLSC_(Ideal_Transmission_Line_Short-Circuited_Stub).html"
+  - title: 调线长直到匹配
+    action: "固定频率 2.4 GHz，调串联线电长度和支节电长度，直到 S11 < -20 dB。"
+    why: "单支节匹配通常有两组解，可通过调谐观察两组解的位置和带宽差异。"
+    verified: false
+    doc_verified: false
+    ui_path: null
+    doc_ref: null
+  - title: 换成微带线实现
+    action: "用 MLIN 替换理想 TLIN，按理论线宽设置 50 Ω 线，再用 LineCalc 换算支节长度。"
+    key_params: "微带线的导波波长比自由空间短，长度必须用 εeff 计算。"
+    why: "分布参数实现后，T 型结与开路/短路端效应会让结果偏离理想值。"
+    verified: false
+    doc_verified: true
+    ui_path: "主线用 MLIN；短路支节用 MLSC（参数 Subst、W、L，单位默认 mil，注意改成 mm）；开路支节才用 MLOC"
+    doc_ref: "ADS 2027 Help: ccdist/MLSC_(Microstrip_Short-Circuited_Stub).html"
+  - title: 记录带宽并选择解
+    action: "扫 1–4 GHz，记录 S11 < -10 dB 的带宽，比较两组匹配解后选定一组。"
+    why: "演示时要说明为什么选这组解，例如线长更短、带宽更宽或实现更方便。"
+    verified: false
+    doc_verified: false
+    ui_path: null
+    doc_ref: null
+
+expected: "2.4 GHz 处 S11 < -20 dB，S21 接近 0 dB；S11 < -10 dB 的带宽至少覆盖 2.3–2.5 GHz。"
+
+checkpoints:
+  - id: cp_unmatched_s11
+    type: range
+    title: 未匹配时 2.4 GHz 处 S11（dB）
+    unit: dB
+    min: -10.5
+    max: -8.5
+    pass_msg: 基准正确
+    on_high:
+      - 检查负载是否为 100 Ω、Term 参考阻抗是否为 50 Ω。
+    on_low:
+      - 确认匹配网络还没有接入。
+  - id: cp_matched_s11
+    type: range
+    title: 匹配后 2.4 GHz 处 S11（dB）
+    unit: dB
+    max: -20.0
+    pass_msg: 匹配良好
+    on_high:
+      - 检查支节是否真正并联在主线节点上。
+      - 检查短路支节的接地是否接上。
+      - 检查串联线电长度是否随频率换算正确。
+  - id: cp_s21
+    type: range
+    title: 2.4 GHz 处 S21（dB）
+    unit: dB
+    min: -0.5
+    max: 0.0
+    pass_msg: 插损合理
+    on_low:
+      - 检查是否误用了有耗线模型或串联了额外电阻。
+  - id: cp_bandwidth
+    type: confirm
+    title: 记录 S11 < -10 dB 的频段，并说明是否满足 2.3–2.5 GHz
+    pass_msg: 带宽已记录
+    fail_msg: 带宽未达标或未记录
+    on_fail:
+      - 单支节是窄带匹配，带宽不足时可改用双支节或多节变换器。
+  - id: cp_choice
+    type: confirm
+    title: 能说明两组匹配解的取舍理由
+    pass_msg: 取舍理由清楚
+    fail_msg: 还没有比较两组解
+    on_fail:
+      - 从线长、带宽、版图可实现性三个角度比较。
+
+common_errors:
+  - symptom: S11 一直是 0 dB
+    diag_id: s11_zero_db
+  - symptom: 目标频点 S11 偏高，匹配不好
+    diag_id: s11_high_at_f0
+  - symptom: S11 呈周期性起伏
+    diag_id: ripple_in_s11
+  - symptom: 加了支节但匹配没有改善
+    diag_id: stub_no_effect
+
+demo:
+  pitch:
+    - "负载 100 Ω 直接接入时 S11 是 -9.5 dB，加一段线和一个短路支节后压到 -20 dB 以下。"
+    - "匹配的本质是把负载导纳转到实部为 1 的圆上，再用支节抵消虚部。"
+    - "单支节匹配是窄带的，偏离 2.4 GHz 后性能快速下降。"
+  qa:
+    - q: "为什么选并联支节而不是串联？"
+      a: "并联支节在导纳域直接抵消虚部，短路支节容易实现，也不需要串联元件。"
+    - q: "短路支节和开路支节怎么选？"
+      a: "理论上都可以，短路支节尺寸更短、但需要接地过孔；开路支节不需要过孔但辐射和端效应更明显。"
+    - q: "为什么仿真匹配好了，实测会偏？"
+      a: "T 型结、线宽误差、介电常数偏差和端效应都会改变电长度，通常需要留调谐余量。"

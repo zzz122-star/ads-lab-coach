@@ -1,0 +1,96 @@
+- id: curve_empty
+  symptom: 曲线全平 / 没有数据
+  keywords: [全平, 没有数据, 空白, 无曲线, 直线, 空]
+  verified: false
+  causes:
+    - {cause: 仿真控制器未放置或未使能, check: 确认原理图中有 S-Parameter 控制器且未被禁用}
+    - {cause: 端口未接或未连通, check: 检查 Term 两端的连线是否真正接到元件引脚}
+    - {cause: 扫频范围或步长设置错误, check: 核对 Start/Stop/Step 与单位}
+    - {cause: 数据窗口选错了数据集, check: 确认数据集名称与本次仿真一致}
+- id: s11_zero_db
+  symptom: S11 一直是 0 dB
+  keywords: [s11, 0db, 0 db, 全反射, 反射]
+  verified: false
+  causes:
+    - {cause: 端口未连到电路，或电路另一端开路, check: 检查两个端口是否都接入电路}
+    - {cause: 端口参考阻抗设置错误, check: 核对 Term 的 Z}
+    - {cause: 微带线未指向有效基板, check: 核对 MLIN 的 Subst 与 MSUB 名称}
+- id: unit_mismatch
+  symptom: 单位量级离谱
+  keywords: [单位, mil, mm, 量级, 太大, 太小, 离谱]
+  verified: false
+  causes:
+    - {cause: 长度单位 mil 与 mm 混用, check: 逐个检查 W、L、H 的单位后缀}
+    - {cause: 频率单位 Hz、MHz、GHz 混用, check: 检查扫频的 Start/Stop 单位}
+- id: hb_no_converge
+  symptom: HB 不收敛
+  keywords: [hb, 谐波平衡, 不收敛, 收敛]
+  verified: false
+  causes:
+    - {cause: 谐波数偏少, check: 逐步增加 Order 再试}
+    - {cause: 输入功率过大, check: 先从小功率扫起}
+    - {cause: 偏置或初值不合理, check: 先单独仿真直流工作点}
+- id: opt_no_result
+  symptom: 优化跑不出结果
+  keywords: [优化, goal, 目标, 变量, 边界, 范围]
+  verified: false
+  causes:
+    - {cause: Goal 范围不合理或互相矛盾, check: 先放宽目标，确认优化器能运行}
+    - {cause: 变量边界太窄, check: 放宽变量的 min/max}
+    - {cause: 变量未被设为可优化, check: 确认变量已启用优化标记}
+- id: s21_gt_0db
+  symptom: S21 大于 0 dB
+  keywords: [s21, 大于0, 增益, 正值, 放大]
+  verified: false
+  causes:
+    - {cause: 读错了曲线或坐标轴不是 dB, check: 确认画的是 dB(S(2,1))}
+    - {cause: 电路中含有有源元件, check: 检查是否误放了增益元件}
+    - {cause: 端口编号接反, check: 核对 Term 的 Num}
+- id: s11_high_at_f0
+  symptom: 目标频点 S11 偏高，匹配不好
+  keywords: [s11, 匹配, 失配, 偏高, 回波损耗]
+  verified: false
+  causes:
+    - {cause: 线宽与目标阻抗不一致, check: 用理论线宽对比}
+    - {cause: 端口参考阻抗不是 50 Ω, check: 核对 Term 的 Z}
+    - {cause: 基板参数与计算不一致, check: 核对 Er、H}
+- id: ripple_in_s11
+  symptom: S11 呈周期性起伏
+  keywords: [起伏, 纹波, 周期, 驻波, 振荡]
+  verified: false
+  causes:
+    - {cause: 线与端口阻抗不一致形成驻波, check: 先让线宽对应 50 Ω}
+    - {cause: 线长较长时起伏周期变密, check: 对比起伏间隔与线长}
+- id: freq_shifted
+  symptom: 谐振或截止频率偏离预期
+  keywords: [偏移, 频率偏, 谐振, 截止, 偏离]
+  verified: false
+  causes:
+    - {cause: 有效介电常数估算与实际不同, check: 用计算器核对 εeff 与导波波长}
+    - {cause: 线长单位错误, check: 核对 L 的单位}
+    - {cause: 基板 Er 取值与实际板材不符, check: 核对板材数据手册}
+- id: no_substrate
+  symptom: 提示基板未定义或元件参数为空
+  keywords: [基板, msub, 未定义, 报错, 参数为空, subst]
+  verified: false
+  causes:
+    - {cause: 原理图中没有 MSUB, check: 放置 MSUB 并填写参数}
+    - {cause: MLIN 的 Subst 名称与 MSUB 不匹配, check: 核对名称}
+- id: stub_no_effect
+  symptom: 加了支节但匹配没有改善
+  keywords: [支节, 并联, 短路, 匹配, 没变化, 没改善]
+  verified: false
+  causes:
+    - {cause: 支节没有真正并联到主线节点, check: 检查连线是否落在同一节点}
+    - {cause: 短路支节末端没有接地, check: 确认支节末端接 0 Ω 到地}
+    - {cause: 支节电长度按自由空间波长计算, check: 改用 εeff 计算导波波长}
+    - {cause: 调谐时只改了线宽没有改线长, check: 固定频率下优先调电长度}
+- id: wilkinson_poor_isolation
+  symptom: Wilkinson 功分器隔离度差
+  keywords: [wilkinson, 隔离, s23, 功分器, 隔离度]
+  verified: false
+  causes:
+    - {cause: 隔离电阻没有接或阻值不对, check: 确认 2·Z0（50 Ω 系统为 100 Ω）跨接在两输出之间}
+    - {cause: 两路臂长或线宽不对称, check: 对称检查两路 MLIN 参数}
+    - {cause: 臂阻抗不是 70.7 Ω, check: 用 √2·Z0 重新计算并核对线宽}
+    - {cause: 电阻位置远离输出节点, check: 尽量靠近两路分开的位置}

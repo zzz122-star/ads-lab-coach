@@ -1,0 +1,136 @@
+id: exp02_transmission_line
+title: 实验 2：理想传输线与 λ/4 变换器
+goal: 用理想传输线 TLIN 观察终端短路、开路和四分之一波长变换器的行为，建立 Smith 圆图与阻抗变换的直觉。
+estimated_minutes: 50
+status: draft
+
+params:
+  - {key: z0, label: 系统阻抗 Z0, unit: Ω, default: 50.0, min: 10.0, max: 200.0, step: 1.0}
+  - {key: zl, label: 负载阻抗 ZL, unit: Ω, default: 100.0, min: 5.0, max: 500.0, step: 1.0}
+  - {key: f0_ghz, label: 工作频率, unit: GHz, default: 1.0, min: 0.1, max: 20.0, step: 0.1}
+  - {key: er, label: 基板 εr（用于微带换算）, unit: "", default: 4.4, min: 1.0, max: 20.0, step: 0.1}
+  - {key: h_mm, label: 基板厚度 h, unit: mm, default: 1.6, min: 0.1, max: 10.0, step: 0.1}
+
+metrics:
+  - {label: 自由空间波长 λ0, unit: mm, calc: free_space_wavelength_mm, digits: 2}
+  - {label: 50 Ω 微带线宽, unit: mm, calc: microstrip_width, digits: 3}
+  - {label: 微带 λ/4 线长, unit: mm, calc: quarter_wave_len_mm, digits: 2}
+  - {label: 匹配前 VSWR, unit: "", calc: vswr, digits: 2}
+  - {label: 匹配前回波损耗, unit: dB, calc: return_loss_db, digits: 2}
+
+verification:
+  ads_version: "2027 (6.5.0.0)"
+  note: "TLIN 元件与 90° 电长度参数需对照 2027 帮助实操确认"
+
+steps:
+  - title: 新建工程并搭好双端口测试台
+    action: "新建原理图（建议 cell 名 lab2）。放入 1 段 TLIN，设 Z=50 Ω、E=90°、F=1 GHz；在 TLIN 两端各放 1 个 Term，Num 分别设 1、2，Z 都设 50 Ω，两个 Term 的参考端接 GROUND；再放 1 个 S-Param 控制器，Start=0.1 GHz、Stop=3 GHz、Step=0.01 GHz。连线后 Ctrl+S 保存。"
+    key_params: "TLIN：Z 特性阻抗、E 电长度（度）、F 参考频率；Term：Num 端口编号、Z 端口参考阻抗；S-Param：Start/Stop/Step 扫描范围。"
+    why: "只有两端接 50 Ω 端口、并有 S 参数控制器，仿真才有明确的输入输出和扫描范围，才能读 S11/S21。"
+    verified: false
+    doc_verified: true
+    ui_path: "元件面板 TLines-Ideal → TLIN；Simulation-S_Param → Term、S_Param。Term 的参考端接 GROUND。"
+    doc_ref: "ADS 2027 Help: ccdist/TLIN_(Ideal_2-Terminal_Transmission_Line).html；示例网表 Port:Term1 Num=1 Z=50 Ohm"
+  - title: 观察短路与开路终端
+    action: "先完成第 1 步的双端口结构。短路：把 Term2 的 Z 改成 0 Ω，或把 TLIN 末端直接接 GROUND；开路：删除 Term2 或让末端悬空。每种状态各运行一次 S 参数仿真，在数据显示窗口观察 S11 的相位随频率变化。"
+    key_params: "短路对应负载 Z=0；开路对应负载 Z 很大或悬空；重点看 S11 相位，不是只看幅度。"
+    why: "短路和开路在 Smith 圆图上分别位于最左和最右，旋转半圈对应 λ/4。"
+    verified: false
+    doc_verified: false
+    ui_path: "双击 Term 修改 Z；或在末端放 GROUND 形成短路。"
+    doc_ref: null
+  - title: 加入 100 Ω 负载，记录失配
+    action: "把 Term2 的 Z 改成 100 Ω（如果上一步删除了 Term2，先重新放回），运行 S 参数仿真，读 1 GHz 处 S11，并记录驻波比。"
+    why: "100 Ω 对 50 Ω 的反射系数是 1/3，对应 S11 约 -9.5 dB、VSWR 约 2。"
+    verified: false
+    doc_verified: false
+    ui_path: "双击 Term2，把 Z 改为 100 Ohm；S-Param 扫 0.1–3 GHz。"
+    doc_ref: null
+  - title: 插入 λ/4 变换器
+    action: "在 TLIN1 与 Term2 之间串联插入第二段 TLIN，设 Z=70.7 Ω、E=90°、F=1 GHz；保持 Term1、Term2 的 Z=50 Ω，负载仍为 100 Ω。"
+    key_params: "变换器阻抗 Zt = √(Z0·ZL) = √(50×100) ≈ 70.7 Ω。"
+    why: "四分之一波长变换器把实负载变换为 Zt²/ZL，取 70.7 Ω 正好回到 50 Ω。"
+    verified: false
+    doc_verified: true
+    ui_path: "元件面板 TLines-Ideal → TLIN；串联在两段之间。"
+    doc_ref: "ADS 2027 Help: ccdist/TLIN_(Ideal_2-Terminal_Transmission_Line).html"
+  - title: 扫频并记录带宽
+    action: "确认 S-Param 扫 0.1–3 GHz。运行仿真，在数据显示窗口画 dB(S(1,1)) 和 dB(S(2,1))，在 1 GHz 放 marker 读 S11，并记录 S11 < -20 dB 的频段宽度。"
+    key_params: "S11 < -20 dB 的频段宽度就是匹配带宽，可以用两个 marker 读起止频率。"
+    why: "λ/4 变换器是窄带结构，带宽随阻抗变换比增大而变窄。"
+    verified: false
+    doc_verified: false
+    ui_path: "数据显示窗口：Insert → Rectangular Plot 选 dB(S(1,1))；Marker → Add Marker。"
+    doc_ref: null
+
+expected: "1 GHz 处 S11 < -20 dB，S21 接近 0 dB；偏离中心频率后 S11 迅速变差。"
+
+checkpoints:
+  - id: cp_tlin_setup
+    type: confirm
+    title: TLIN、两个 Term（Num=1/2、Z=50）和 S-Param（0.1–3 GHz）都设置正确
+    pass_msg: 双端口测试台设置正确
+    fail_msg: 测试台设置不完整
+    on_fail:
+      - 检查 E 的单位是度，不是弧度。
+      - 检查两个 Term 的 Num 是否分别为 1 和 2。
+      - 检查 S-Param 是否覆盖 1 GHz。
+  - id: cp_unmatched
+    type: range
+    title: 未匹配时 1 GHz 处 S11（dB）
+    unit: dB
+    min: -10.5
+    max: -8.5
+    pass_msg: 与理论 -9.5 dB 一致
+    on_high:
+      - 检查负载是否为 100 Ω、参考阻抗是否为 50 Ω。
+    on_low:
+      - 确认还没有加入变换器。
+  - id: cp_matched_s11
+    type: range
+    title: 匹配后 1 GHz 处 S11（dB）
+    unit: dB
+    max: -20.0
+    pass_msg: 匹配良好
+    on_high:
+      - 检查变换器阻抗是否为 70.7 Ω。
+      - 检查电长度是否为 90°、参考频率是否为 1 GHz。
+  - id: cp_s21
+    type: range
+    title: 1 GHz 处 S21（dB）
+    unit: dB
+    min: -0.2
+    max: 0.0
+    pass_msg: 理想传输线无损耗
+    on_low:
+      - 检查是否误用了有耗传输线模型。
+  - id: cp_quarter_len
+    type: match_calc
+    calc: quarter_wave_len_mm
+    title: 若改用微带实现，λ/4 线长（mm）
+    unit: mm
+    tolerance_pct: 10
+    on_fail:
+      - 检查 εr 与 h 是否与基板一致。
+      - 检查工作频率是否设成 1 GHz。
+
+common_errors:
+  - symptom: 曲线全平 / 没有数据
+    diag_id: curve_empty
+  - symptom: S11 一直是 0 dB
+    diag_id: s11_zero_db
+  - symptom: 单位量级离谱
+    diag_id: unit_mismatch
+
+demo:
+  pitch:
+    - "这个实验验证两件事：传输线能把阻抗按 λ/4 变换，以及变换器只在中心频率附近有效。"
+    - "100 Ω 负载直接接 50 Ω 系统时 S11 是 -9.5 dB，插入 70.7 Ω 的 λ/4 线后回到 -20 dB 以下。"
+    - "偏离 1 GHz 后 S11 快速变差，说明它是窄带匹配。"
+  qa:
+    - q: "为什么变换器阻抗是 √(Z0·ZL)？"
+      a: "因为 λ/4 线的输入阻抗是 Zt²/ZL，要让它等于 Z0，就需要 Zt=√(Z0·ZL)。"
+    - q: "为什么偏离中心频率就失配？"
+      a: "电长度随频率变化，只有在 90° 时输入阻抗才严格等于 Zt²/ZL，偏离后相位不再抵消。"
+    - q: "实际微带实现要注意什么？"
+      a: "要用 εeff 算导波波长，T 型结和不连续会带来额外电抗，通常需要仿真后微调线长。"

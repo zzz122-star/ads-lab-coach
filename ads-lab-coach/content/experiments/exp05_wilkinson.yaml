@@ -1,0 +1,132 @@
+id: exp05_wilkinson
+title: 实验 5：Wilkinson 功分器
+goal: 设计一个 2.4 GHz 等分 Wilkinson 功分器，验证两路幅度平衡、端口匹配和输出隔离。
+estimated_minutes: 90
+status: draft
+
+params:
+  - {key: z0, label: 系统阻抗 Z0, unit: Ω, default: 50.0, min: 10.0, max: 200.0, step: 1.0}
+  - {key: f0_ghz, label: 中心频率, unit: GHz, default: 2.4, min: 0.1, max: 20.0, step: 0.1}
+  - {key: er, label: 基板 εr, unit: "", default: 4.4, min: 1.0, max: 20.0, step: 0.1}
+  - {key: h_mm, label: 基板厚度 h, unit: mm, default: 1.6, min: 0.1, max: 10.0, step: 0.1}
+
+metrics:
+  - {label: λ/4 臂阻抗, unit: Ω, calc: arm_impedance, digits: 1}
+  - {label: 隔离电阻 R, unit: Ω, calc: isolation_resistor, digits: 0}
+  - {label: 50 Ω 线宽, unit: mm, calc: microstrip_width, digits: 3}
+  - {label: 70.7 Ω 线宽, unit: mm, calc: arm_width, digits: 3}
+  - {label: λ/4 臂线长, unit: mm, calc: arm_quarter_len, digits: 2}
+
+verification:
+  ads_version: "2027 (6.5.0.0)"
+  note: "MLIN、MSUB 元件已在 2027 帮助确认；理想功分结构需实操验证"
+
+steps:
+  - title: 计算臂阻抗与隔离电阻
+    action: "按 Z0=50 Ω 计算两路 λ/4 臂阻抗 √2·50≈70.7 Ω，隔离电阻取 2·Z0=100 Ω。"
+    key_params: "等分 Wilkinson 的臂阻抗是 √2·Z0，隔离电阻是 2·Z0。"
+    why: "这两个值决定了端口匹配和输出隔离，写错任何一个都会导致隔离度很差。"
+    verified: false
+    doc_verified: false
+    ui_path: "用本页指标区核对 70.7 Ω 与 100 Ω"
+    doc_ref: "Pozar《Microwave Engineering》第 7 章 Power Dividers and Directional Couplers（页码待核对）"
+  - title: 搭建理想功分器
+    action: "用 3 个 Term 和两段 TLIN（E=90°、Z=70.7 Ω）搭出功分结构，输出端之间跨接 100 Ω 电阻。"
+    why: "先用理想元件验证拓扑和公式，排除微带不连续带来的干扰。"
+    verified: false
+    doc_verified: false
+    ui_path: null
+    doc_ref: null
+  - title: 换成微带实现
+    action: "用 MLIN 替换理想臂，按 70.7 Ω 线宽和 λ/4 线长设置，隔离电阻用 TFR 或理想电阻。"
+    key_params: "微带 T 型结处需要补偿，λ/4 长度按 εeff 计算。"
+    why: "分布参数实现后会偏离理想响应，需要微调臂长和电阻位置。"
+    verified: false
+    doc_verified: true
+    ui_path: "元件面板 Microstrip → MLIN / MTEE；电阻可用 TFR 或理想电阻"
+    doc_ref: "ADS 2027 Help: ccdist/MTEE_(Microstrip_T-Junction).html；ccdist/TFR_(Thin_Film_Resistor).html"
+  - title: 设置三端口 S 参数扫描
+    action: "三个 Term 分别设 Num=1/2/3、Z=50 Ω，S-Param 控制器扫 1–4 GHz。"
+    why: "三端口网络要同时看 S11、S21、S31 和 S23，单看一路无法判断隔离。"
+    verified: false
+    doc_verified: true
+    ui_path: "Term Num=1/2/3、Z=50 Ohm；S-Param 控制器 Sweep Type=Linear"
+    doc_ref: "官方示例网表 Term Num/Z 写法；ADS 2027 Help: S-Parameter Configuration - Frequency Sweep"
+  - title: 读指标并解释
+    action: "记录 2.4 GHz 处 S11、S21、S31、S23，检查两路幅度差和隔离度。"
+    why: "演示时要说明每一路的理论值：S21/S31 约 -3 dB，S23 应低于 -20 dB。"
+    verified: false
+    doc_verified: false
+    ui_path: null
+    doc_ref: null
+
+expected: "2.4 GHz 处 S11 < -20 dB，S21 与 S31 约 -3 dB 且差值小于 0.2 dB，S23 < -20 dB。"
+
+checkpoints:
+  - id: cp_topology
+    type: confirm
+    title: 两路臂阻抗为 70.7 Ω、电长度 90°，隔离电阻为 100 Ω
+    pass_msg: 拓扑与参数正确
+    fail_msg: 拓扑或参数有误
+    on_fail:
+      - 臂阻抗写成 50 Ω 会导致回波损耗变差。
+      - 隔离电阻漏接会导致 S23 接近 0 dB。
+  - id: cp_s11
+    type: range
+    title: 2.4 GHz 处 S11（dB）
+    unit: dB
+    max: -20.0
+    pass_msg: 输入匹配良好
+    on_high:
+      - 检查 λ/4 臂长是否按 εeff 计算。
+      - 检查 T 型结是否引入额外失配。
+  - id: cp_s21
+    type: range
+    title: 2.4 GHz 处 S21（dB）
+    unit: dB
+    min: -3.5
+    max: -3.0
+    pass_msg: 输出功率接近理论 -3 dB
+    on_low:
+      - 插损过大，检查介质损耗和线长。
+    on_high:
+      - 高于 -3 dB 不符合无源等分，检查端口编号。
+  - id: cp_isolation
+    type: range
+    title: 2.4 GHz 处 S23 隔离（dB）
+    unit: dB
+    max: -20.0
+    pass_msg: 隔离合格
+    on_high:
+      - 检查 100 Ω 电阻是否接在两个输出臂之间。
+      - 检查两路臂长是否对称。
+  - id: cp_balance
+    type: confirm
+    title: S21 与 S31 幅度差小于 0.2 dB
+    pass_msg: 两路平衡
+    fail_msg: 两路不平衡
+    on_fail:
+      - 检查两路线宽和线长是否完全对称。
+
+common_errors:
+  - symptom: 目标频点 S11 偏高，匹配不好
+    diag_id: s11_high_at_f0
+  - symptom: 曲线全平 / 没有数据
+    diag_id: curve_empty
+  - symptom: 单位量级离谱
+    diag_id: unit_mismatch
+  - symptom: Wilkinson 功分器隔离度差
+    diag_id: wilkinson_poor_isolation
+
+demo:
+  pitch:
+    - "Wilkinson 用两段 70.7 Ω 的 λ/4 臂把输入等分成两路，每路理论上 -3 dB。"
+    - "100 Ω 隔离电阻是它和普通 T 型功分器的关键区别，能把两路输出隔离开。"
+    - "仿真要同时看 S11、S21/S31 和 S23，只看输出幅度无法判断隔离是否合格。"
+  qa:
+    - q: "为什么臂阻抗是 70.7 Ω？"
+      a: "两路并联后要回到 50 Ω，λ/4 变换要求臂阻抗为 √2·Z0，即 70.7 Ω。"
+    - q: "隔离电阻为什么是 100 Ω？"
+      a: "等分时隔离电阻取 2·Z0，正好吸收两路之间的差模分量，同时不影响等幅同相传输。"
+    - q: "实测隔离度不够怎么办？"
+      a: "先检查电阻焊接和接地，再检查两路臂长是否对称，最后考虑 T 型结补偿。"

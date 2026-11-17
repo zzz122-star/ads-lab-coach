@@ -1,0 +1,134 @@
+id: exp04_stepped_lpf
+title: 实验 4：阶跃阻抗低通滤波器
+goal: 用高低阻抗微带线段交替实现 5 阶低通滤波器，在 3 GHz 附近截止，并观察分布参数对频率响应的影响。
+estimated_minutes: 90
+status: draft
+
+params:
+  - {key: z0, label: 系统阻抗 Z0, unit: Ω, default: 50.0, min: 10.0, max: 200.0, step: 1.0}
+  - {key: fc_ghz, label: 截止频率, unit: GHz, default: 3.0, min: 0.5, max: 10.0, step: 0.1}
+  - {key: z_low, label: 低阻线段阻抗, unit: Ω, default: 15.0, min: 5.0, max: 30.0, step: 1.0}
+  - {key: z_high, label: 高阻线段阻抗, unit: Ω, default: 120.0, min: 60.0, max: 150.0, step: 1.0}
+  - {key: er, label: 基板 εr, unit: "", default: 2.7, min: 1.0, max: 20.0, step: 0.1}
+  - {key: h_mm, label: 基板厚度 h, unit: mm, default: 1.0, min: 0.1, max: 10.0, step: 0.1}
+
+metrics:
+  - {label: 系统阻抗线宽, unit: mm, calc: microstrip_width, digits: 3}
+  - {label: 低阻段线宽, unit: mm, calc: low_width, digits: 2}
+  - {label: 高阻段线宽, unit: mm, calc: high_width, digits: 2}
+  - {label: 低阻段 λg/8, unit: mm, calc: low_eighth_len, digits: 2}
+  - {label: 高阻段 λg/8, unit: mm, calc: high_eighth_len, digits: 2}
+
+verification:
+  ads_version: "2027 (6.5.0.0)"
+  note: "MLIN、MSTEP、MSUB 元件已在 2027 帮助中确认；具体优化设置需实操补充"
+
+steps:
+  - title: 计算各段线宽与长度
+    action: "用 LineCalc 分别计算 15 Ω、120 Ω 和 50 Ω 微带线的线宽，再按截止频率算 λg/8 作为各段初值。"
+    key_params: "5 阶滤波器由 5 段传输线组成，低阻段等效并联电容，高阻段等效串联电感。"
+    why: "阶跃阻抗低通把集总 LC 原型映射成高低阻抗线，线长取 λg/8 是常用初值。"
+    verified: false
+    doc_verified: true
+    ui_path: "Tools → LineCalc → Start LineCalc；或在原理图选中元件后 Send Selected Component To LineCalc"
+    doc_ref: "ADS 2027 Help: ccdist/MLIN_(Microstrip_Line).html"
+  - title: 放置基板与 5 段微带线
+    action: "放入 MSUB，设置 Er=2.7、H=1 mm、T=0.05 mm、TanD=0.0003，然后放置 5 个 MLIN 并填入线宽和长度。"
+    key_params: "5 段阻抗顺序为 低-高-低-高-低，两端接 50 Ω 端口。"
+    why: "MSUB 决定所有微带线的介质环境，参数不一致会让线宽计算全部失效。"
+    verified: false
+    doc_verified: true
+    ui_path: "元件面板 Microstrip → MSUB / MLIN"
+    doc_ref: "ADS 2027 Help: ccdist/MSUB_(Microstrip_Substrate).html"
+  - title: 用 MSTEP 连接不同线宽
+    action: "在相邻线段之间放 6 个 MSTEP，W1/W2 按两侧线宽填写。"
+    key_params: "阶梯处会产生额外电抗和寄生电容，正是实测频偏的主要来源之一。"
+    why: "直接让不同线宽的 MLIN 首尾相接在版图上不连续，必须用 MSTEP 过渡。"
+    verified: false
+    doc_verified: true
+    ui_path: "元件面板 Microstrip → MSTEP"
+    doc_ref: "ADS 2027 Help: ccdist/MSTEP_(Microstrip_Step_in_Width).html"
+  - title: 接端口并设置 S 参数扫描
+    action: "两端各接 1 个 Term（Num=1/2，Z=50 Ω），S-Param 控制器扫 0.1–10 GHz。"
+    why: "扫频范围要覆盖通带、截止过渡和阻带，才能同时看插入损耗和抑制。"
+    verified: false
+    doc_verified: true
+    ui_path: "Term 元件 Num=1/2、Z=50 Ohm；S-Param 控制器 Sweep Type=Linear"
+    doc_ref: "官方示例网表 LPF_Design_Demo_wrk/netlist.log；ADS 2027 Help: S-Parameter Configuration - Frequency Sweep"
+  - title: 仿真、优化并记录指标
+    action: "运行仿真，读出 1 GHz 处 S21、4.5 GHz 处 S21 和 3 GHz 附近过渡点，必要时调整线长做优化。"
+    why: "演示时要能解释通带插损、截止位置和阻带抑制三个指标是否同时满足。"
+    verified: false
+    doc_verified: false
+    ui_path: null
+    doc_ref: null
+
+expected: "通带（1 GHz）S21 优于 -1 dB，4.5 GHz 处 S21 低于 -20 dB，3 GHz 附近处于截止过渡区。"
+
+checkpoints:
+  - id: cp_low_width
+    type: match_calc
+    calc: low_width
+    title: 低阻段线宽（mm）
+    unit: mm
+    tolerance_pct: 5
+    on_fail:
+      - 检查 εr 与 h 是否和 MSUB 一致。
+      - 检查单位是否混用。
+  - id: cp_high_width
+    type: match_calc
+    calc: high_width
+    title: 高阻段线宽（mm）
+    unit: mm
+    tolerance_pct: 5
+    on_fail:
+      - 高阻线很窄时注意工艺最小线宽。
+      - 检查阻抗设置是否写成了 120 而不是 12。
+  - id: cp_passband
+    type: range
+    title: 1 GHz 处 S21（dB）
+    unit: dB
+    min: -1.0
+    max: 0.0
+    pass_msg: 通带插损合格
+    on_low:
+      - 检查 TanD 是否过大、线长是否算错。
+    on_high:
+      - S21 大于 0 dB 不符合无源网络，检查曲线和端口。
+  - id: cp_stopband
+    type: range
+    title: 4.5 GHz 处 S21（dB）
+    unit: dB
+    max: -20.0
+    pass_msg: 阻带抑制合格
+    on_high:
+      - 增加阶数或调整高低阻抗比。
+      - 检查各段线长是否按 λg/8 计算。
+  - id: cp_transition
+    type: confirm
+    title: 3 GHz 附近处于截止过渡区，且能解释过渡带宽度
+    pass_msg: 截止位置解释清楚
+    fail_msg: 截止位置偏离或无法解释
+    on_fail:
+      - 阶数越高过渡带越陡，但通带插损和版图尺寸也会增加。
+
+common_errors:
+  - symptom: 目标频点 S11 偏高，匹配不好
+    diag_id: s11_high_at_f0
+  - symptom: 谐振或截止频率偏离预期
+    diag_id: freq_shifted
+  - symptom: 优化跑不出结果
+    diag_id: opt_no_result
+
+demo:
+  pitch:
+    - "这个滤波器用 5 段高低阻抗线交替实现，低阻段等效并联电容，高阻段等效串联电感。"
+    - "通带 1 GHz 插损小于 1 dB，4.5 GHz 抑制超过 20 dB，3 GHz 附近是截止过渡区。"
+    - "阶梯不连续和线长误差会让实测截止频率偏低，这是后续调谐的重点。"
+  qa:
+    - q: "为什么用高低阻抗线而不是集总电容电感？"
+      a: "高频段集总元件损耗大、自谐振低，分布参数更容易实现，也便于版图加工。"
+    - q: "阶数怎么定？"
+      a: "由通带插损、阻带抑制和过渡带宽度共同决定，先用低通原型查表，再通过仿真微调。"
+    - q: "为什么仿真结果和理论有偏差？"
+      a: "MSTEP 阶梯不连续、开路端效应和介质色散都会带来额外电抗，理想线拼接无法完全等效。"

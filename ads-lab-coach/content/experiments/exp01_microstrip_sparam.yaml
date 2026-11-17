@@ -1,0 +1,157 @@
+id: exp01_microstrip_sparam
+title: 实验 1：微带线 S 参数仿真
+goal: 在 FR-4 类基板上搭建一段 50 Ω 微带线，做 S 参数仿真，确认 2.4 GHz 处匹配良好、传输损耗小。
+estimated_minutes: 60
+status: draft
+
+params:
+  - {key: z0, label: 目标特性阻抗, unit: Ω, default: 50.0, min: 10.0, max: 200.0, step: 1.0}
+  - {key: er, label: 基板相对介电常数 εr, unit: "", default: 4.4, min: 1.0, max: 20.0, step: 0.1}
+  - {key: h_mm, label: 基板厚度 h, unit: mm, default: 1.6, min: 0.1, max: 10.0, step: 0.1}
+  - {key: tand, label: 损耗角正切 tanδ, unit: "", default: 0.02, min: 0.0, max: 0.1, step: 0.001}
+  - {key: f0_ghz, label: 工作频率, unit: GHz, default: 2.4, min: 0.1, max: 20.0, step: 0.1}
+  - {key: len_mm, label: 微带线长度, unit: mm, default: 20.0, min: 1.0, max: 500.0, step: 1.0}
+
+metrics:
+  - {label: 理论线宽 W, unit: mm, calc: microstrip_width, digits: 3}
+  - {label: 有效介电常数 εeff, unit: "", calc: microstrip_eeff, digits: 3}
+  - {label: 导波波长 λg, unit: mm, calc: guided_wavelength_mm, digits: 2}
+
+verification:
+  ads_version: "2027 (6.5.0.0)"
+  doc_checked_on: "2026-11-17"
+  doc_root: 'C:\Program Files\Keysight\ADS2027\doc\ads\Content\ads2027'
+  example: "examples/RF_Microwave/LPF_Design_Demo_wrk.7zads -> LPF_Design_Demo_wrk/netlist.log"
+  note: "步骤 1~5 已与 ADS 2027 本地帮助和官方示例网表核对；实操截图尚未采集，因此 verified 仍为 false"
+
+steps:
+  - title: 新建工程并打开原理图
+    action: 新建一个工程和原理图窗口，工程名用英文、不含空格。
+    why: 中文或空格路径容易导致后续仿真或数据文件读取异常。
+    verified: false
+    doc_verified: true
+    ui_path: "启动页 Create a new workspace，或 File 菜单新建 Workspace"
+    doc_ref: "ADS 2027 Help: prgbasics/Workspace.html（Creating a Workspace）"
+  - title: 放置微带线元件 MLIN
+    action: 从微带线元件库放入 1 个 MLIN，设置 W 与 L（单位统一用 mm）。
+    key_params: "W：线宽，由上方「理论线宽」给出；L：线长，本实验取 20 mm。"
+    why: 线宽决定特性阻抗，线长决定相位和损耗。
+    verified: false
+    doc_verified: true
+    ui_path: "元件面板 Microstrip → MLIN；参数 W（线宽）、L（线长），Subst 指向 MSUB 实例"
+    doc_ref: "ADS 2027 Help: ccdist/MLIN_(Microstrip_Line).html"
+  - title: 放置基板定义 MSUB
+    action: 放入 1 个 MSUB，并填写 Er、H、TanD，其余参数先保持默认。
+    key_params: "Er：相对介电常数；H：基板厚度；TanD：介质损耗。MLIN 的 Subst 要指向这个 MSUB 的名字。"
+    why: 没有基板定义，MLIN 没有物理意义；Er 和 H 直接参与线宽计算。
+    verified: false
+    doc_verified: true
+    ui_path: "元件面板 Microstrip → MSUB；属性页 Microstrip Substrate，填 H、Er、T、TanD"
+    doc_ref: "ADS 2027 Help: ccdist/MSUB_(Microstrip_Substrate).html"
+  - title: 放置端口 Term 并接地
+    action: 在 MLIN 两端各接 1 个 Term，Num 分别设为 1、2，Z 设为 50 Ω。
+    key_params: "Num：端口编号；Z：端口参考阻抗。Term 是端口，不是地，注意区分。"
+    why: S 参数是相对端口参考阻抗定义的，参考阻抗错了，S11 就没有意义。
+    verified: false
+    doc_verified: true
+    ui_path: "Term 元件：Num 设 1/2，Z 设 50 Ohm，另一端接地"
+    doc_ref: "官方示例网表 LPF_Design_Demo_wrk/netlist.log：Port:Term1 Num=1 Z=50 Ohm"
+  - title: 放置 S 参数仿真控制器
+    action: 放入 S-Parameter 控制器，设起始频率 0.1 GHz、终止频率 5 GHz、步长 0.01 GHz。
+    key_params: "Start/Stop/Step：扫频范围和步长。步长太大会漏掉谐振点，太小会拖慢仿真。"
+    why: 扫频范围必须覆盖 2.4 GHz，否则检查点没数据可读。
+    verified: false
+    doc_verified: true
+    ui_path: "S-Param 控制器：Sweep Type=Linear，Start=0.1 GHz、Stop=5 GHz、Step-size=0.01 GHz"
+    doc_ref: "ADS 2027 Help: cktsimsp/S-Parameter_Configuration_-_Frequency_Sweep.html；示例网表 SweepPlan Start/Stop/Step"
+  - title: 运行仿真并查看 S11、S21
+    action: 运行仿真，在数据显示窗口里分别画 S11、S21 的 dB 曲线，在 2.4 GHz 处放 marker 读值。
+    why: 检查点要读 2.4 GHz 处的 dB 数值。
+    verified: false
+    doc_verified: false
+    ui_path: null
+    doc_ref: null
+
+expected: "S11 在 2.4 GHz 处远低于 -10 dB；S21 接近 0 dB 但略小于 0（介质损耗）；全频段 |S11|²+|S21|² ≤ 1。"
+
+demo:
+  pitch:
+    - "这个实验验证一段 50 Ω 微带线在 2.4 GHz 附近的匹配和传输特性。"
+    - "线宽由 εr、h 和目标阻抗共同决定，本组参数下算出来约 3 mm；线长决定相位和损耗。"
+    - "仿真结果是 S11 低于 -10 dB、S21 接近 0 dB，并且满足能量守恒。"
+  qa:
+    - q: "为什么线宽能决定特性阻抗？"
+      a: "线宽改变单位长度的电容和电感，宽线电容大、阻抗低，窄线相反。"
+    - q: "MSUB 为什么必须放？"
+      a: "微带线模型需要介质厚度和介电常数，没有 MSUB，MLIN 就没有物理意义。"
+    - q: "S21 为什么不是正好 0 dB？"
+      a: "导体损耗和介质损耗（TanD）都会带来衰减，频率越高越明显。"
+
+checkpoints:
+  - id: cp_sweep
+    type: confirm
+    title: 扫频范围覆盖 2.4 GHz 且步长 ≤ 0.1 GHz
+    pass_msg: 扫频设置合理
+    fail_msg: 扫频范围或步长不合适
+    on_fail:
+      - 检查 Start/Stop 是否包含 2.4 GHz。
+      - 检查单位是否写成了 MHz 或 Hz。
+  - id: cp_port_z
+    type: confirm
+    title: 两个 Term 的 Z 都是 50 Ω，Num 分别为 1 和 2
+    pass_msg: 端口设置正确
+    fail_msg: 端口设置有误
+    on_fail:
+      - 两个端口的 Num 不能相同。
+      - Z 若不是 50 Ω，S11 会偏离预期。
+  - id: cp_curve
+    type: confirm
+    title: 数据窗口里 S11、S21 曲线都有数据，且不是一条水平直线
+    pass_msg: 曲线正常
+    fail_msg: 曲线为空或全平
+    on_fail:
+      - 见故障库：曲线全平 / 没有数据。
+  - id: cp_width
+    type: match_calc
+    calc: microstrip_width
+    title: 你使用的线宽 W（mm）与理论线宽一致
+    unit: mm
+    tolerance_pct: 5
+    on_fail:
+      - 确认 W 的单位是 mm，不是 mil。
+      - 确认 εr 和 h 与 MSUB 中填写的一致。
+  - id: cp_s11
+    type: range
+    title: 2.4 GHz 处 S11（dB）
+    unit: dB
+    max: -10
+    pass_msg: 匹配良好
+    on_high:
+      - 先核对线宽，线宽偏差会直接引起阻抗失配。
+      - 再核对 Term 的 Z 是否为 50 Ω。
+      - 最后核对 MSUB 中 Er、H 是否与计算一致。
+  - id: cp_s21
+    type: range
+    title: 2.4 GHz 处 S21（dB）
+    unit: dB
+    min: -1.0
+    max: 0.0
+    pass_msg: 传输损耗合理
+    on_high:
+      - S21 大于 0 dB 违反无源网络，检查是否读错曲线或用了有源元件。
+    on_low:
+      - 损耗过大，检查 TanD 是否填成了过大的数值，或线长单位是否混用。
+  - id: cp_passive
+    type: passivity
+    title: 能量守恒检查
+    uses: [cp_s11, cp_s21]
+    on_fail:
+      - 重新读取 S11、S21，确认都是 dB 且在同一频点读取。
+
+common_errors:
+  - symptom: 曲线全平 / 没有数据
+    diag_id: curve_empty
+  - symptom: S11 一直是 0 dB
+    diag_id: s11_zero_db
+  - symptom: 单位量级离谱
+    diag_id: unit_mismatch
